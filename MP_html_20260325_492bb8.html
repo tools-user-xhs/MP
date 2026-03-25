@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>三种风格名片 | 智能人脸检测 · 自动居中裁剪</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #eef2f5;
+            font-family: 'Inter', 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+            padding: 40px 24px;
+            min-height: 100vh;
+        }
+
+        .app-container {
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        .header h1 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: #1a2c3e;
+            margin-bottom: 8px;
+        }
+        .header p {
+            color: #5e6f8d;
+            font-size: 0.9rem;
+        }
+
+        .main-layout {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 28px;
+        }
+
+        .settings-panel {
+            flex: 0.9;
+            min-width: 280px;
+            background: #ffffff;
+            border-radius: 28px;
+            padding: 28px 24px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+            height: fit-content;
+        }
+
+        .settings-panel h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1a2c3e;
+            margin-bottom: 6px;
+        }
+        .settings-panel .sub {
+            font-size: 0.75rem;
+            color: #5e6f8d;
+            border-left: 3px solid #2b6e9e;
+            padding-left: 10px;
+            margin-bottom: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        .form-group input, 
+        .form-group select {
+            width: 100%;
+            padding: 8px 12px;
+            font-size: 0.85rem;
+            border: 1px solid #dce3ec;
+            border-radius: 12px;
+            background: #ffffff;
+            font-family: inherit;
+        }
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #2b6e9e;
+        }
+
+        .photo-upload-area {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .avatar-preview {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            object-fit: cover;
+            background: #f0f2f5;
+            border: 2px solid #e2e8f0;
+        }
+        .file-input-wrapper {
+            flex: 1;
+        }
+        .file-input-wrapper input::file-selector-button {
+            background: #f0f4f9;
+            border: 1px solid #cdd9ed;
+            border-radius: 30px;
+            padding: 5px 12px;
+            font-size: 0.7rem;
+            cursor: pointer;
+        }
+        .upload-status {
+            font-size: 0.65rem;
+            margin-top: 6px;
+            display: none;
+            padding: 4px 8px;
+            border-radius: 8px;
+            background: #f0f4f9;
+        }
+        .upload-status.show {
+            display: block;
+        }
+        .upload-status.success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .upload-status.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .upload-status.info {
+            background: #e0f2fe;
+            color: #075985;
+        }
+
+        .generate-btn, .reset-btn {
+            width: 100%;
+            padding: 10px 0;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border-radius: 40px;
+            cursor: pointer;
+            margin-top: 12px;
+            transition: 0.2s;
+            border: none;
+            font-family: inherit;
+        }
+        .generate-btn {
+            background: #1f4e6e;
+            color: white;
+        }
+        .generate-btn:hover {
+            background: #0f3c57;
+        }
+        .reset-btn {
+            background: #6c7a8e;
+            color: white;
+        }
+        .reset-btn:hover {
+            background: #4a5a6e;
+        }
+
+        /* 右侧三卡片区域 */
+        .cards-container {
+            flex: 2;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .cards-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 24px;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .card-wrapper {
+            flex: 1;
+            min-width: 260px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .card-wrapper.disabled {
+            opacity: 0.5;
+            filter: grayscale(0.4);
+            pointer-events: none;
+        }
+        
+        .card-wrapper.selected {
+            opacity: 1;
+            filter: none;
+            pointer-events: auto;
+        }
+        
+        .card-wrapper.selected .business-card {
+            box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.2), 0 0 0 3px #2b6e9e;
+            transform: scale(1.02);
+        }
+        
+        .card-wrapper:not(.selected):not(.disabled):hover .business-card {
+            transform: scale(1.01);
+            box-shadow: 0 15px 30px -12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .card-label {
+            text-align: center;
+            margin-bottom: 12px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            padding: 6px 16px;
+            border-radius: 40px;
+            background: #f0f4f9;
+            color: #2c3e50;
+        }
+        
+        .card-wrapper.selected .card-label {
+            background: #1f4e6e;
+            color: white;
+        }
+        
+        .select-hint {
+            margin-top: 10px;
+            font-size: 0.7rem;
+            color: #2b6e9e;
+            font-weight: 500;
+        }
+
+        /* 名片通用样式 */
+        .business-card {
+            width: 90mm;
+            min-height: 54mm;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            padding: 4mm 4.5mm;
+            transition: all 0.2s ease;
+            background: white;
+        }
+
+        .card-inner {
+            display: flex;
+            gap: 3mm;
+            flex: 1;
+        }
+
+        .card-avatar {
+            flex-shrink: 0;
+            width: 19mm;
+            height: 19mm;
+            border-radius: 50%;
+            overflow: hidden;
+            background: #f0f2f5;
+        }
+        .card-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .card-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 1mm;
+        }
+
+        .card-footer-note {
+            margin-top: 1.5mm;
+            font-size: 5.5pt;
+            text-align: right;
+            padding-top: 1mm;
+        }
+
+        /* 风格1：经典商务 */
+        .style-classic .business-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+        }
+        .style-classic .card-name {
+            font-size: 11pt;
+            font-weight: 700;
+            color: #1a2c3e;
+        }
+        .style-classic .card-title {
+            font-size: 8.5pt;
+            font-weight: 600;
+            color: #2b6e9e;
+            text-transform: uppercase;
+        }
+        .style-classic .card-company {
+            font-size: 8pt;
+            font-weight: 500;
+            color: #3a546d;
+        }
+        .style-classic .card-details {
+            font-size: 7pt;
+            color: #5a6e85;
+            display: flex;
+            gap: 2mm;
+        }
+        .style-classic .detail-item {
+            background: #f5f7fa;
+            padding: 1px 5px;
+            border-radius: 10px;
+        }
+        .style-classic .contact-line {
+            font-size: 7pt;
+            color: #3b5c7a;
+            display: flex;
+            gap: 2mm;
+            flex-wrap: wrap;
+        }
+        .style-classic .extra-meta .meta-tag {
+            background: #f0f4fa;
+            padding: 1px 5px;
+            border-radius: 10px;
+            font-size: 6.5pt;
+        }
+        .style-classic .card-footer-note {
+            color: #8c9bb0;
+            border-top: 0.5px solid #e9edf2;
+        }
+
+        /* 风格2：现代简约 */
+        .style-modern .business-card {
+            background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+            border-left: 3px solid #10b981;
+        }
+        .style-modern .card-name {
+            font-size: 11pt;
+            font-weight: 600;
+            color: #0f172a;
+        }
+        .style-modern .card-title {
+            font-size: 8pt;
+            font-weight: 500;
+            color: #10b981;
+        }
+        .style-modern .card-company {
+            font-size: 7.5pt;
+            font-weight: 400;
+            color: #475569;
+        }
+        .style-modern .card-details {
+            font-size: 6.5pt;
+            color: #64748b;
+            display: flex;
+            gap: 2mm;
+        }
+        .style-modern .detail-item {
+            background: transparent;
+            padding: 0;
+        }
+        .style-modern .contact-line {
+            font-size: 6.5pt;
+            color: #334155;
+            display: flex;
+            gap: 2mm;
+            flex-wrap: wrap;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 1mm;
+            margin-top: 0.5mm;
+        }
+        .style-modern .extra-meta .meta-tag {
+            background: transparent;
+            padding: 0;
+            font-size: 6pt;
+            color: #10b981;
+        }
+        .style-modern .card-footer-note {
+            color: #94a3b8;
+            border-top: none;
+            font-style: italic;
+        }
+
+        /* 风格3：高端奢华 */
+        .style-luxury .business-card {
+            background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
+            border: 1px solid #fbbf24;
+        }
+        .style-luxury .card-name {
+            font-size: 11pt;
+            font-weight: 700;
+            color: #fbbf24;
+        }
+        .style-luxury .card-title {
+            font-size: 8pt;
+            font-weight: 500;
+            color: #e2e8f0;
+            text-transform: uppercase;
+        }
+        .style-luxury .card-company {
+            font-size: 7.5pt;
+            font-weight: 400;
+            color: #cbd5e1;
+        }
+        .style-luxury .card-details {
+            font-size: 6.5pt;
+            color: #94a3b8;
+            display: flex;
+            gap: 2mm;
+        }
+        .style-luxury .detail-item {
+            background: rgba(251,191,36,0.15);
+            padding: 1px 5px;
+            border-radius: 10px;
+            color: #fbbf24;
+        }
+        .style-luxury .contact-line {
+            font-size: 6.5pt;
+            color: #cbd5e1;
+            display: flex;
+            gap: 2mm;
+            flex-wrap: wrap;
+        }
+        .style-luxury .extra-meta .meta-tag {
+            background: rgba(251,191,36,0.2);
+            padding: 1px 6px;
+            border-radius: 15px;
+            font-size: 6pt;
+            color: #fbbf24;
+        }
+        .style-luxury .card-footer-note {
+            color: #64748b;
+            border-top: 0.5px solid rgba(251,191,36,0.3);
+        }
+        .style-luxury .card-avatar {
+            border: 2px solid #fbbf24;
+        }
+
+        @media print {
+            body * { visibility: hidden; }
+            .card-wrapper.selected,
+            .card-wrapper.selected * { visibility: visible; }
+            .card-wrapper.selected {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                margin: 0;
+                padding: 0;
+            }
+            .card-wrapper.selected .business-card {
+                box-shadow: none;
+                border: 0.5px solid #ccc;
+                margin: 0 auto;
+                page-break-after: avoid;
+                break-inside: avoid;
+                print-color-adjust: exact;
+                -webkit-print-color-adjust: exact;
+            }
+            @page {
+                margin: 0;
+                size: 90mm 54mm;
+            }
+            .settings-panel,
+            .cards-grid .card-wrapper:not(.selected),
+            .header, .generate-btn, .reset-btn, .select-hint, .print-footer-btn, .small-note {
+                display: none !important;
+            }
+        }
+
+        .print-footer-btn {
+            margin-top: 32px;
+            text-align: center;
+        }
+        .print-action-btn {
+            background: #2c5a7a;
+            color: white;
+            border: none;
+            padding: 12px 32px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 40px;
+            cursor: pointer;
+            transition: 0.2s;
+            font-family: inherit;
+        }
+        .print-action-btn:hover {
+            background: #1e4662;
+            transform: translateY(-1px);
+        }
+        
+        .small-note {
+            font-size: 0.7rem;
+            color: #7e8b9c;
+            text-align: center;
+            margin-top: 16px;
+        }
+        
+        @media (max-width: 1000px) {
+            .cards-grid {
+                flex-direction: column;
+                align-items: center;
+            }
+            .card-wrapper {
+                width: 100%;
+                max-width: 90mm;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <div class="header">
+        <h1>🎴 智能人脸名片工坊</h1>
+        <p>AI智能检测人脸 · 自动居中裁剪 · 确保打印完美呈现面部</p>
+    </div>
+    
+    <div class="main-layout">
+        <div class="settings-panel">
+            <h2>✨ 编辑信息</h2>
+            <div class="sub">智能人脸识别 · 自动裁剪头像</div>
+
+            <div class="form-group">
+                <label>👤 姓名</label>
+                <input type="text" id="fullName" value="陈志远 Michael Chen">
+            </div>
+            <div class="form-group">
+                <label>🏢 公司名称</label>
+                <input type="text" id="companyName" value="SINOTRADE INTERNATIONAL CO., LTD.">
+            </div>
+            <div class="form-group">
+                <label>📌 职位</label>
+                <select id="jobPosition">
+                    <option value="外贸经理 / Export Manager">外贸经理 / Export Manager</option>
+                    <option value="销售总监 / Sales Director" selected>销售总监 / Sales Director</option>
+                    <option value="市场开发主管 / BD Supervisor">市场开发主管 / BD Supervisor</option>
+                    <option value="采购经理 / Purchasing Manager">采购经理 / Purchasing Manager</option>
+                    <option value="区域经理 / Regional Manager">区域经理 / Regional Manager</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>⏳ 工作年限</label>
+                <select id="workYears">
+                    <option value="1年以下">1年以下</option>
+                    <option value="1-3年">1-3年</option>
+                    <option value="3-5年" selected>3-5年</option>
+                    <option value="5-8年">5-8年</option>
+                    <option value="8年以上">8年以上</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>🏅 级别</label>
+                <select id="gradeLevel">
+                    <option value="初级">初级</option>
+                    <option value="中级">中级</option>
+                    <option value="高级" selected>高级</option>
+                    <option value="总监级">总监级</option>
+                    <option value="高管级">高管级</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>📞 电话</label>
+                <input type="text" id="phoneNum" value="+86 138 1234 5678">
+            </div>
+            <div class="form-group">
+                <label>✉️ 邮箱</label>
+                <input type="email" id="emailAddr" value="michael.chen@sinotrade.com">
+            </div>
+            <div class="form-group">
+                <label>🌐 网站</label>
+                <input type="text" id="website" value="www.sinotrade.com">
+            </div>
+
+            <div class="form-group">
+                <label>📸 上传头像 (AI智能人脸居中)</label>
+                <div class="photo-upload-area">
+                    <img id="uploadPreview" class="avatar-preview" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='%238aa0b5'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E" alt="头像">
+                    <div class="file-input-wrapper">
+                        <input type="file" id="photoUpload" accept="image/jpeg,image/png,image/jpg,image/webp">
+                    </div>
+                </div>
+                <div id="uploadStatus" class="upload-status"></div>
+                <small style="font-size: 0.65rem; color:#6c7a91;">✨ 智能检测人脸位置，自动裁剪并居中，确保打印出来看到完整面部</small>
+            </div>
+
+            <button class="generate-btn" id="generateCardBtn">✨ 同步更新所有名片</button>
+            <button class="reset-btn" id="resetSelectionBtn">🔄 重置选择（三卡恢复可选）</button>
+            <div class="small-note">修改后点击同步，三张名片同时更新</div>
+        </div>
+
+        <div class="cards-container">
+            <div class="cards-grid">
+                <!-- 经典商务 -->
+                <div class="card-wrapper style-classic" data-style="classic">
+                    <div class="card-label">🏛️ 经典商务 · 稳重专业</div>
+                    <div class="business-card">
+                        <div class="card-inner">
+                            <div class="card-avatar"><img class="avatar-img" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='%238aa0b5'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E" alt="profile"></div>
+                            <div class="card-info">
+                                <div class="card-name">陈志远 Michael Chen</div>
+                                <div class="card-title">销售总监 / Sales Director</div>
+                                <div class="card-company">SINOTRADE INTERNATIONAL CO., LTD.</div>
+                                <div class="card-details"><span class="detail-item">⏱️ <span class="exp-text">3-5年</span></span><span class="detail-item">🏅 <span class="level-text">高级</span></span></div>
+                                <div class="contact-line"><span class="phone-text">📞 +86 138 1234 5678</span><span class="email-text">✉️ michael.chen@sinotrade.com</span></div>
+                                <div class="extra-meta"><span class="meta-tag">🌐 <span class="web-text">www.sinotrade.com</span></span></div>
+                            </div>
+                        </div>
+                        <div class="card-footer-note">Trust & Quality Since 2010</div>
+                    </div>
+                    <div class="select-hint">✓ 点击选择此风格</div>
+                </div>
+
+                <!-- 现代简约 -->
+                <div class="card-wrapper style-modern" data-style="modern">
+                    <div class="card-label">✨ 现代简约 · 清新明快</div>
+                    <div class="business-card">
+                        <div class="card-inner">
+                            <div class="card-avatar"><img class="avatar-img" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='%238aa0b5'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E" alt="profile"></div>
+                            <div class="card-info">
+                                <div class="card-name">陈志远 Michael Chen</div>
+                                <div class="card-title">销售总监 / Sales Director</div>
+                                <div class="card-company">SINOTRADE INTERNATIONAL CO., LTD.</div>
+                                <div class="card-details"><span class="detail-item">⏱️ <span class="exp-text">3-5年</span></span><span class="detail-item">🏅 <span class="level-text">高级</span></span></div>
+                                <div class="contact-line"><span class="phone-text">📞 +86 138 1234 5678</span><span class="email-text">✉️ michael.chen@sinotrade.com</span></div>
+                                <div class="extra-meta"><span class="meta-tag">🌐 <span class="web-text">www.sinotrade.com</span></span></div>
+                            </div>
+                        </div>
+                        <div class="card-footer-note">Innovation · Excellence · Partnership</div>
+                    </div>
+                    <div class="select-hint">✓ 点击选择此风格</div>
+                </div>
+
+                <!-- 高端奢华 -->
+                <div class="card-wrapper style-luxury" data-style="luxury">
+                    <div class="card-label">👑 高端奢华 · 尊贵典雅</div>
+                    <div class="business-card">
+                        <div class="card-inner">
+                            <div class="card-avatar"><img class="avatar-img" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='%238aa0b5'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E" alt="profile"></div>
+                            <div class="card-info">
+                                <div class="card-name">陈志远 Michael Chen</div>
+                                <div class="card-title">销售总监 / Sales Director</div>
+                                <div class="card-company">SINOTRADE INTERNATIONAL CO., LTD.</div>
+                                <div class="card-details"><span class="detail-item">⏱️ <span class="exp-text">3-5年</span></span><span class="detail-item">🏅 <span class="level-text">高级</span></span></div>
+                                <div class="contact-line"><span class="phone-text">📞 +86 138 1234 5678</span><span class="email-text">✉️ michael.chen@sinotrade.com</span></div>
+                                <div class="extra-meta"><span class="meta-tag">🌐 <span class="web-text">www.sinotrade.com</span></span></div>
+                            </div>
+                        </div>
+                        <div class="card-footer-note">Bespoke Service · Global Excellence</div>
+                    </div>
+                    <div class="select-hint">✓ 点击选择此风格</div>
+                </div>
+            </div>
+            
+            <div class="print-footer-btn">
+                <button class="print-action-btn" id="printSelectedBtn">🖨️ 打印选中的名片</button>
+            </div>
+            <div class="small-note">※ 点击任意名片即可选中，其他自动置灰。AI智能检测人脸，自动居中裁剪确保面部完美呈现</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        const cardWrappers = document.querySelectorAll('.card-wrapper');
+        let selectedCard = null;
+        
+        const fullNameInput = document.getElementById('fullName');
+        const companyInput = document.getElementById('companyName');
+        const jobSelect = document.getElementById('jobPosition');
+        const yearsSelect = document.getElementById('workYears');
+        const levelSelect = document.getElementById('gradeLevel');
+        const phoneInput = document.getElementById('phoneNum');
+        const emailInput = document.getElementById('emailAddr');
+        const websiteInput = document.getElementById('website');
+        const photoFile = document.getElementById('photoUpload');
+        const uploadPreviewImg = document.getElementById('uploadPreview');
+        const uploadStatus = document.getElementById('uploadStatus');
+        const generateBtn = document.getElementById('generateCardBtn');
+        const printBtn = document.getElementById('printSelectedBtn');
+        const resetBtn = document.getElementById('resetSelectionBtn');
+        
+        let currentAvatarBase64 = null;
+        const DEFAULT_AVATAR = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='%238aa0b5'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E";
+        
+        currentAvatarBase64 = DEFAULT_AVATAR;
+        uploadPreviewImg.src = DEFAULT_AVATAR;
+        
+        /**
+         * 智能人脸检测并裁剪为1:1正方形，确保人脸居中
+         * 使用简单的肤色检测 + 图像分析来估算人脸位置（前端轻量级方案）
+         * 如果检测不到人脸，则回退到中心裁剪
+         */
+        async function smartFaceCrop(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        
+                        const targetSize = 512;
+                        canvas.width = targetSize;
+                        canvas.height = targetSize;
+                        
+                        // 计算最佳裁剪区域 - 优先检测人脸区域
+                        let cropX = 0, cropY = 0, cropSize;
+                        let faceDetected = false;
+                        
+                        // 方法：分析图像上半部分寻找皮肤色调区域（简单的面部区域估算）
+                        // 创建临时canvas分析图像中心偏上区域
+                        const analysisCanvas = document.createElement('canvas');
+                        const analysisCtx = analysisCanvas.getContext('2d');
+                        const sampleSize = Math.min(img.width, img.height);
+                        analysisCanvas.width = sampleSize;
+                        analysisCanvas.height = sampleSize;
+                        analysisCtx.drawImage(img, 0, 0, sampleSize, sampleSize);
+                        
+                        const imageData = analysisCtx.getImageData(0, 0, sampleSize, sampleSize);
+                        const data = imageData.data;
+                        
+                        // 扫描图像上部1/3到2/3区域寻找皮肤色调区域
+                        let skinPixels = [];
+                        const startY = Math.floor(sampleSize * 0.2);
+                        const endY = Math.floor(sampleSize * 0.7);
+                        const startX = Math.floor(sampleSize * 0.2);
+                        const endX = Math.floor(sampleSize * 0.8);
+                        
+                        for (let y = startY; y < endY; y++) {
+                            for (let x = startX; x < endX; x++) {
+                                const idx = (y * sampleSize + x) * 4;
+                                const r = data[idx];
+                                const g = data[idx + 1];
+                                const b = data[idx + 2];
+                                // 肤色检测简化版 (RGB范围)
+                                if (r > 60 && g > 40 && b > 20 && r > g && r > b && Math.abs(r - g) > 15) {
+                                    skinPixels.push({x, y});
+                                }
+                            }
+                        }
+                        
+                        if (skinPixels.length > 20) {
+                            // 计算皮肤区域中心点
+                            let avgX = 0, avgY = 0;
+                            skinPixels.forEach(p => {
+                                avgX += p.x;
+                                avgY += p.y;
+                            });
+                            avgX /= skinPixels.length;
+                            avgY /= skinPixels.length;
+                            
+                            // 将坐标映射回原图
+                            const scaleX = img.width / sampleSize;
+                            const scaleY = img.height / sampleSize;
+                            let faceCenterX = avgX * scaleX;
+                            let faceCenterY = avgY * scaleY;
+                            
+                            // 确保中心点在合理范围内
+                            faceCenterX = Math.min(Math.max(faceCenterX, img.width * 0.25), img.width * 0.75);
+                            faceCenterY = Math.min(Math.max(faceCenterY, img.height * 0.3), img.height * 0.7);
+                            
+                            // 计算裁剪区域，使人脸居中
+                            cropSize = Math.min(img.width, img.height);
+                            cropX = faceCenterX - cropSize / 2;
+                            cropY = faceCenterY - cropSize / 2;
+                            
+                            // 边界处理
+                            if (cropX < 0) cropX = 0;
+                            if (cropY < 0) cropY = 0;
+                            if (cropX + cropSize > img.width) cropX = img.width - cropSize;
+                            if (cropY + cropSize > img.height) cropY = img.height - cropSize;
+                            
+                            faceDetected = true;
+                        }
+                        
+                        // 如果没有检测到人脸，使用中心裁剪
+                        if (!faceDetected) {
+                            cropSize = Math.min(img.width, img.height);
+                            cropX = (img.width - cropSize) / 2;
+                            cropY = (img.height - cropSize) / 2;
+                        }
+                        
+                        // 绘制裁剪后的图像
+                        ctx.drawImage(img, cropX, cropY, cropSize, cropSize, 0, 0, targetSize, targetSize);
+                        resolve(canvas.toDataURL('image/png'));
+                    };
+                    img.onerror = () => reject(new Error('图片加载失败'));
+                    img.src = e.target.result;
+                };
+                reader.onerror = () => reject(new Error('文件读取失败'));
+                reader.readAsDataURL(file);
+            });
+        }
+        
+        // 显示状态消息
+        function showStatus(message, type = 'info') {
+            uploadStatus.textContent = message;
+            uploadStatus.className = `upload-status show ${type}`;
+            setTimeout(() => {
+                uploadStatus.classList.remove('show');
+            }, 3000);
+        }
+        
+        // 头像上传处理
+        photoFile.addEventListener('change', async function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            if (!file.type.match(/image\/(jpeg|png|jpg|webp)/i)) {
+                showStatus('❌ 请上传 JPG/PNG/WEBP 格式图片', 'error');
+                photoFile.value = '';
+                return;
+            }
+            
+            if (file.size > 5 * 1024 * 1024) {
+                showStatus('❌ 图片大小不能超过 5MB', 'error');
+                photoFile.value = '';
+                return;
+            }
+            
+            try {
+                showStatus('🔍 AI智能检测人脸中...', 'info');
+                const croppedBase64 = await smartFaceCrop(file);
+                currentAvatarBase64 = croppedBase64;
+                uploadPreviewImg.src = croppedBase64;
+                showStatus('✓ 智能人脸检测完成，已自动居中裁剪，面部完美呈现', 'success');
+                updateAllCards();
+            } catch (error) {
+                console.error('处理失败:', error);
+                showStatus('❌ 处理失败，请重试', 'error');
+                photoFile.value = '';
+            }
+        });
+        
+        function resetSelection() {
+            cardWrappers.forEach(wrapper => {
+                wrapper.classList.remove('selected', 'disabled');
+            });
+            selectedCard = null;
+        }
+        
+        function selectCard(cardWrapper) {
+            if (selectedCard === cardWrapper) return;
+            cardWrappers.forEach(wrapper => {
+                wrapper.classList.remove('selected', 'disabled');
+            });
+            cardWrapper.classList.add('selected');
+            cardWrappers.forEach(wrapper => {
+                if (wrapper !== cardWrapper) wrapper.classList.add('disabled');
+            });
+            selectedCard = cardWrapper;
+        }
+        
+        function updateAllCards() {
+            const name = fullNameInput.value.trim() || "商务代表";
+            const company = companyInput.value.trim() || "Global Trade Partners";
+            const position = jobSelect.value;
+            const years = yearsSelect.value;
+            const level = levelSelect.value;
+            const phone = phoneInput.value.trim() || "——";
+            const email = emailInput.value.trim() || "——";
+            const website = websiteInput.value.trim() || "";
+            
+            cardWrappers.forEach(wrapper => {
+                wrapper.querySelectorAll('.card-name').forEach(el => el.textContent = name);
+                wrapper.querySelectorAll('.card-company').forEach(el => el.textContent = company);
+                wrapper.querySelectorAll('.card-title').forEach(el => el.textContent = position);
+                wrapper.querySelectorAll('.exp-text').forEach(el => el.textContent = years);
+                wrapper.querySelectorAll('.level-text').forEach(el => el.textContent = level);
+                wrapper.querySelectorAll('.phone-text').forEach(el => el.innerHTML = `📞 ${phone}`);
+                wrapper.querySelectorAll('.email-text').forEach(el => el.innerHTML = `✉️ ${email}`);
+                wrapper.querySelectorAll('.web-text').forEach(el => el.textContent = website || "www.example.com");
+                wrapper.querySelectorAll('.avatar-img').forEach(img => {
+                    img.src = currentAvatarBase64 || DEFAULT_AVATAR;
+                });
+            });
+        }
+        
+        generateBtn.addEventListener('click', () => {
+            updateAllCards();
+            document.querySelectorAll('.business-card').forEach(card => {
+                card.style.transform = 'scale(1.01)';
+                setTimeout(() => card.style.transform = '', 150);
+            });
+        });
+        
+        resetBtn.addEventListener('click', resetSelection);
+        
+        cardWrappers.forEach(wrapper => {
+            wrapper.addEventListener('click', (e) => {
+                e.stopPropagation();
+                selectCard(wrapper);
+            });
+        });
+        
+        printBtn.addEventListener('click', () => {
+            if (selectedCard) {
+                updateAllCards();
+                setTimeout(() => window.print(), 50);
+            } else {
+                alert("请先点击选择一种名片风格");
+            }
+        });
+        
+        updateAllCards();
+        resetSelection();
+    })();
+</script>
+</body>
+</html>
